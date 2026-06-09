@@ -36,7 +36,7 @@ impl eframe::App for ExtractorApp {
         egui::TopBottomPanel::bottom("footer_panel").show(ctx, |ui| {
             ui.add_space(8.0);
             ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new("V1.1 Created by W1164 for queries contact aditya.gottapu@waisldigital.com")
+                ui.label(egui::RichText::new("v1.1, Created by W1164. For Feedback/Queries contact Aditya.gottapu@waisldigital.com")
                     .color(egui::Color32::GRAY)
                     .size(12.0));
             });
@@ -173,7 +173,10 @@ impl eframe::App for ExtractorApp {
                 .default_open(false)
                 .show(ui, |ui| {
                     ui.set_min_width(ui.available_width());
-                    egui::ScrollArea::vertical().stick_to_bottom(true).max_height(150.0).show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .stick_to_bottom(true)
+                        .max_height(ui.available_height())
+                        .show(ui, |ui| {
                         for msg in &self.log_messages {
                             if msg.starts_with("Error") || msg.starts_with("Ignored") {
                                 ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(255, 100, 100)));
