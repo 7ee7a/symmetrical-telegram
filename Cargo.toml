@@ -1,0 +1,13 @@
+[package]
+name = "pdf_to_excel_extractor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.27"
+rfd = "0.14"
+umya-spreadsheet = "0.9"
+pdf-extract = "0.7"
+regex = "1.10"
+log = "0.4"
+env_logger = "0.11"
