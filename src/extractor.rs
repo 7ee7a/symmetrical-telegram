@@ -8,25 +8,44 @@ pub fn process_files(pdf_paths: &[PathBuf], excel_path: &Path) -> Result<usize, 
     let sheet = spreadsheet.get_active_sheet_mut();
     
     let mut column_map = std::collections::HashMap::new();
+    let mut header_row_idx = 1;
     
-    // Find the header row in Excel (assume row 1)
-    for col in 1..=100 {
-        if let Some(cell) = sheet.get_cell((col, 1)) {
-            let val = cell.get_value().trim().to_string();
-            if !val.is_empty() {
-                column_map.insert(val, col);
+    let expected_cols = vec![
+        "SL.No", "Arr Flt No.", "Dep FltNo.", "Regn No.", "Origin", "Dest", 
+        "Arr Date", "Arr Time", "Arr StdTyp", "Dep Date", "Dep Time", "Dep StdTyp", 
+        "MTOW", "Landing", "Normal HRS", "Double HRS", "Remote HRS", "Parking"
+    ];
+
+    // Scan up to the first 50 rows to find the headers
+    let mut found_headers = false;
+    for row in 1..=50 {
+        let mut temp_map = std::collections::HashMap::new();
+        for col in 1..=100 {
+            if let Some(cell) = sheet.get_cell((col, row)) {
+                let val = cell.get_value().trim().to_string();
+                if !val.is_empty() {
+                    temp_map.insert(val, col);
+                }
             }
+        }
+        
+        // Check if this row contains at least one of our expected headers
+        if expected_cols.iter().any(|&expected| temp_map.contains_key(expected)) {
+            column_map = temp_map;
+            header_row_idx = row;
+            found_headers = true;
+            break;
         }
     }
     
-    if column_map.is_empty() {
-        return Err("Could not find any headers in the first row of the Excel file.".into());
+    if !found_headers || column_map.is_empty() {
+        return Err("Could not find any of the expected headers (like 'SL.No') in the first 50 rows of the Excel file.".into());
     }
 
     let mut total_rows_added = 0;
     
-    // Find next empty row
-    let mut next_row = 2;
+    // Find next empty row starting after the header row
+    let mut next_row = header_row_idx + 1;
     while sheet.get_cell((1, next_row)).is_some() && !sheet.get_value((1, next_row)).is_empty() {
         next_row += 1;
     }
