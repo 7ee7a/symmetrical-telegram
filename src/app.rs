@@ -36,7 +36,7 @@ impl eframe::App for ExtractorApp {
         egui::TopBottomPanel::bottom("footer_panel").show(ctx, |ui| {
             ui.add_space(8.0);
             ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new("v1.1, Created by W1164. For Feedback/Queries contact Aditya.gottapu@waisldigital.com")
+                ui.label(egui::RichText::new("v1.1, by W1164. Contact Aditya.gottapu@waisldigital.com for intel/feedback")
                     .color(egui::Color32::GRAY)
                     .size(12.0));
             });
@@ -46,14 +46,14 @@ impl eframe::App for ExtractorApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_space(10.0);
             ui.vertical_centered(|ui| {
-                ui.heading(egui::RichText::new("✈️ 🅿️ Invoice PDF to Excel").size(28.0).strong());
+                ui.heading(egui::RichText::new("Invoice SAP-PDF -> XLSX").size(28.0).strong());
             });
             ui.add_space(15.0);
 
             // Excel Picker Group
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
-                ui.label(egui::RichText::new("1. Select Target Excel File").size(16.0).strong());
+                ui.label(egui::RichText::new("1. Select Templated Excel File To Output").size(16.0).strong());
                 ui.add_space(5.0);
                 ui.horizontal(|ui| {
                     if ui.button("📁 Browse...").clicked() {
@@ -78,7 +78,7 @@ impl eframe::App for ExtractorApp {
             // Dropzone Group
             ui.group(|ui| {
                 ui.set_min_width(ui.available_width());
-                ui.label(egui::RichText::new("2. Add PDF Files").size(16.0).strong());
+                ui.label(egui::RichText::new("2. Add Invoice PDF Files From SAP").size(16.0).strong());
                 ui.add_space(5.0);
                 ui.label("Drag and drop your PDF files directly into this window.");
                 ui.add_space(10.0);
