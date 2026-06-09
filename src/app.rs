@@ -128,7 +128,15 @@ impl eframe::App for ExtractorApp {
                             let pdf_paths = self.dropped_files.clone();
                             
                             match extractor::process_files(&pdf_paths, &excel_path) {
-                                Ok(count) => self.log(&format!("Success! Appended {} rows.", count)),
+                                Ok((count, warnings)) => {
+                                    self.log(&format!("Success! Appended {} rows.", count));
+                                    if !warnings.is_empty() {
+                                        self.log(&format!("Warning: {} rows were ignored because their format didn't match.", warnings.len()));
+                                        for w in warnings.iter().take(10) { // Show up to 10 ignored lines
+                                            self.log(&format!("Ignored: {}", w));
+                                        }
+                                    }
+                                }
                                 Err(e) => self.log(&format!("Error: {}", e)),
                             }
                             

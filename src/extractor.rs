@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use umya_spreadsheet::{reader, writer};
 
-pub fn process_files(pdf_paths: &[PathBuf], excel_path: &Path) -> Result<usize, String> {
+pub fn process_files(pdf_paths: &[PathBuf], excel_path: &Path) -> Result<(usize, Vec<String>), String> {
     let mut spreadsheet = reader::xlsx::read(excel_path)
         .map_err(|e| format!("Failed to read Excel file: {}", e))?;
     
@@ -48,18 +48,24 @@ pub fn process_files(pdf_paths: &[PathBuf], excel_path: &Path) -> Result<usize, 
     }
 
     let mut total_rows_added = 0;
+    let mut warnings = Vec::new();
     
-    // Find next empty row starting after the header row
-    let mut next_row = header_row_idx + 1;
-    while sheet.get_cell((1, next_row)).is_some() && !sheet.get_value((1, next_row)).is_empty() {
-        next_row += 1;
-    }
+    // Find next empty row globally across the sheet
+    let highest_row = sheet.get_highest_row();
+    let mut next_row = if highest_row <= header_row_idx as u32 {
+        header_row_idx as u32 + 1
+    } else {
+        highest_row + 1
+    };
 
     for pdf_path in pdf_paths {
         let text = pdf_extract::extract_text(pdf_path)
             .map_err(|e| format!("Failed to extract text from {}: {:?}", pdf_path.display(), e))?;
             
-        let rows = parse_pdf_text(&text)?;
+        let (rows, skipped) = parse_pdf_text(&text)?;
+        for s in skipped {
+            warnings.push(format!("File {}: {}", pdf_path.file_name().unwrap_or_default().to_string_lossy(), s));
+        }
         
         for row_data in rows {
             for (header, value) in row_data {
@@ -75,11 +81,12 @@ pub fn process_files(pdf_paths: &[PathBuf], excel_path: &Path) -> Result<usize, 
     writer::xlsx::write(&spreadsheet, excel_path)
         .map_err(|e| format!("Failed to save Excel file: {}", e))?;
         
-    Ok(total_rows_added)
+    Ok((total_rows_added, warnings))
 }
 
-fn parse_pdf_text(text: &str) -> Result<Vec<std::collections::HashMap<String, String>>, String> {
+fn parse_pdf_text(text: &str) -> Result<(Vec<std::collections::HashMap<String, String>>, Vec<String>), String> {
     let mut results = Vec::new();
+    let mut skipped_lines = Vec::new();
     let mut in_table = false;
     
     let expected_cols = vec![
@@ -88,9 +95,9 @@ fn parse_pdf_text(text: &str) -> Result<Vec<std::collections::HashMap<String, St
         "MTOW", "Landing", "Normal HRS", "Double HRS", "Remote HRS", "Parking"
     ];
 
-    // Regex to match exactly 18 fields.
-    // Handles multi-word columns (e.g., '6E 1422' or '67 R') cleanly using dates and times as anchors.
-    let pattern = r"^(\d+)\s+([a-zA-Z0-9]+\s*\d*)\s+([a-zA-Z0-9]+\s*\d*)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s*(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s+([\d.]+)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d,.]+)$";
+    // Regex to match exactly 18 fields. Allow decimals in hour fields just in case.
+    // Handles multi-word columns cleanly using dates and times as anchors.
+    let pattern = r"^(\d+)\s+([a-zA-Z0-9]+\s*\d*)\s+([a-zA-Z0-9]+\s*\d*)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s*(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d,.]+)$";
     let row_re = regex::Regex::new(pattern)
         .map_err(|e| format!("Regex compilation failed: {}", e))?;
     
@@ -117,12 +124,17 @@ fn parse_pdf_text(text: &str) -> Result<Vec<std::collections::HashMap<String, St
                     row_map.insert(expected_cols[i].to_string(), val.to_string());
                 }
                 results.push(row_map);
+            } else {
+                // Garbage lines, wrapped headers, or footers without the structure are safely ignored.
+                // If it looks somewhat like a data row (contains digits) but fails regex, log it as skipped.
+                if line.chars().any(|c| c.is_digit(10)) {
+                    skipped_lines.push(line.to_string());
+                }
             }
-            // Garbage lines, wrapped headers, or footers without the structure are safely ignored.
         }
     }
     
-    Ok(results)
+    Ok((results, skipped_lines))
 }
 
 #[cfg(test)]
