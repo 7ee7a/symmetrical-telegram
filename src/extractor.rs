@@ -24,14 +24,19 @@ pub fn process_files(pdf_paths: &[PathBuf], excel_path: &Path) -> Result<usize, 
             if let Some(cell) = sheet.get_cell((col, row)) {
                 let val = cell.get_value().trim().to_string();
                 if !val.is_empty() {
-                    temp_map.insert(val, col);
+                    temp_map.insert(val.to_lowercase(), col);
                 }
             }
         }
         
-        // Check if this row contains at least one of our expected headers
-        if expected_cols.iter().any(|&expected| temp_map.contains_key(expected)) {
-            column_map = temp_map;
+        // Check if this row contains at least one of our expected headers (case-insensitive)
+        if expected_cols.iter().any(|&expected| temp_map.contains_key(&expected.to_lowercase())) {
+            // Rebuild column_map with the formal expected name -> col
+            for &expected in &expected_cols {
+                if let Some(&col) = temp_map.get(&expected.to_lowercase()) {
+                    column_map.insert(expected.to_string(), col);
+                }
+            }
             header_row_idx = row;
             found_headers = true;
             break;
@@ -121,4 +126,21 @@ fn parse_pdf_text(text: &str) -> Result<Vec<std::collections::HashMap<String, St
     }
     
     Ok(results)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_read_pdf() {
+        let path = PathBuf::from("./input.PDF");
+        if path.exists() {
+            let text = pdf_extract::extract_text(&path).unwrap();
+            println!("PDF TEXT:\n{}", text);
+        } else {
+            println!("No input.PDF found");
+        }
+    }
 }
