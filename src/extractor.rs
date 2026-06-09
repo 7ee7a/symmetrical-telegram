@@ -98,7 +98,7 @@ fn parse_pdf_text(text: &str) -> Result<(Vec<std::collections::HashMap<String, S
     // Regex to match exactly 18 fields. Allow commas/decimals in all numeric fields.
     // Handles multi-word columns cleanly using dates and times as anchors.
     // Allowed letters in the flight numbers (e.g. 6E 752E).
-    let pattern = r"^(\d+)\s+([a-zA-Z0-9]+\s*[a-zA-Z0-9]*)\s+([a-zA-Z0-9]+\s*[a-zA-Z0-9]*)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s*(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)$";
+    let pattern = r"^([\d,]+)\s+([a-zA-Z0-9]+\s*[a-zA-Z0-9]*)\s+([a-zA-Z0-9]+\s*[a-zA-Z0-9]*)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s*(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)$";
     let row_re = regex::Regex::new(pattern)
         .map_err(|e| format!("Regex compilation failed: {}", e))?;
     

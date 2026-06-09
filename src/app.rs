@@ -149,7 +149,7 @@ impl eframe::App for ExtractorApp {
                                     self.log(&format!("Success! Appended {} rows.", count));
                                     if !warnings.is_empty() {
                                         self.log(&format!("Warning: {} rows were ignored because their format didn't match.", warnings.len()));
-                                        for w in warnings.iter().take(10) { // Show up to 10 ignored lines
+                                        for w in warnings.iter() { 
                                             self.log(&format!("Ignored: {}", w));
                                         }
                                     }
