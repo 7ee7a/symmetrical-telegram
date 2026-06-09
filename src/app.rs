@@ -28,85 +28,119 @@ impl ExtractorApp {
 
 impl eframe::App for ExtractorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("PDF to Excel Extractor");
-            ui.separator();
+        // Set standard dark theme visuals
+        ctx.set_visuals(egui::Visuals::dark());
 
-            ui.horizontal(|ui| {
-                if ui.button("Select Excel File").clicked() {
-                    if let Some(path) = rfd::FileDialog::new()
-                        .add_filter("Excel files", &["xlsx"])
-                        .pick_file() {
-                        self.excel_path = Some(path.clone());
-                        self.log(&format!("Selected Excel: {}", path.display()));
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add_space(10.0);
+            ui.heading(egui::RichText::new("📊 PDF to Excel Extractor").size(24.0).strong());
+            ui.add_space(15.0);
+
+            // Excel Picker Group
+            ui.group(|ui| {
+                ui.label(egui::RichText::new("1. Select Target Excel File").size(16.0).strong());
+                ui.add_space(5.0);
+                ui.horizontal(|ui| {
+                    if ui.button("📁 Browse...").clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("Excel files", &["xlsx"])
+                            .pick_file() {
+                            self.excel_path = Some(path.clone());
+                            self.log(&format!("Selected Excel: {}", path.display()));
+                        }
                     }
-                }
-                if let Some(path) = &self.excel_path {
-                    ui.label(path.display().to_string());
+                    if let Some(path) = &self.excel_path {
+                        ui.label(path.display().to_string());
+                    } else {
+                        ui.label(egui::RichText::new("No Excel file selected.").color(egui::Color32::GRAY));
+                    }
+                });
+            });
+
+            ui.add_space(15.0);
+
+            // Dropzone Group
+            ui.group(|ui| {
+                ui.label(egui::RichText::new("2. Add PDF Files").size(16.0).strong());
+                ui.add_space(5.0);
+                ui.label("Drag and drop your PDF files directly into this window.");
+                ui.add_space(10.0);
+                
+                if !self.dropped_files.is_empty() {
+                    ui.label(egui::RichText::new(format!("{} files ready.", self.dropped_files.len())).color(egui::Color32::LIGHT_GREEN));
+                    ui.add_space(5.0);
+                    
+                    egui::ScrollArea::vertical().max_height(100.0).show(ui, |ui| {
+                        let mut files_to_remove = Vec::new();
+                        for (i, file) in self.dropped_files.iter().enumerate() {
+                            ui.horizontal(|ui| {
+                                if ui.button("❌").clicked() {
+                                    files_to_remove.push(i);
+                                }
+                                ui.label(file.file_name().unwrap_or_default().to_string_lossy());
+                            });
+                        }
+                        for i in files_to_remove.into_iter().rev() {
+                            self.dropped_files.remove(i);
+                        }
+                    });
+                    
+                    ui.add_space(5.0);
+                    if ui.button("Clear All").clicked() {
+                        self.dropped_files.clear();
+                    }
                 } else {
-                    ui.label("No Excel file selected.");
+                    ui.label(egui::RichText::new("No PDFs added yet.").color(egui::Color32::GRAY));
                 }
             });
 
-            ui.separator();
-            ui.label("Drag and drop PDF files here:");
-            
-            // Show dropped files
-            if !self.dropped_files.is_empty() {
-                ui.label(format!("{} files ready.", self.dropped_files.len()));
-                let mut files_to_remove = Vec::new();
-                for (i, file) in self.dropped_files.iter().enumerate() {
-                    ui.horizontal(|ui| {
-                        ui.label(file.file_name().unwrap_or_default().to_string_lossy());
-                        if ui.button("❌").clicked() {
-                            files_to_remove.push(i);
-                        }
-                    });
-                }
-                for i in files_to_remove.into_iter().rev() {
-                    self.dropped_files.remove(i);
-                }
-                
-                if ui.button("Clear All").clicked() {
-                    self.dropped_files.clear();
-                }
-            } else {
-                ui.label("No PDFs added yet.");
-            }
+            ui.add_space(15.0);
 
-            ui.separator();
-
-            // Extract Button
-            if self.excel_path.is_some() && !self.dropped_files.is_empty() {
-                if self.is_processing {
-                    ui.label("Processing...");
-                } else {
-                    if ui.button("Extract & Append").clicked() {
-                        self.is_processing = true;
-                        self.log("Starting extraction...");
+            // Action
+            ui.horizontal(|ui| {
+                if self.excel_path.is_some() && !self.dropped_files.is_empty() {
+                    if self.is_processing {
+                        ui.add(egui::Spinner::new());
+                        ui.label("Processing...");
+                    } else {
+                        let btn = egui::Button::new(egui::RichText::new("🚀 Extract & Append").size(18.0))
+                            .fill(egui::Color32::from_rgb(0, 122, 204));
                         
-                        let excel_path = self.excel_path.as_ref().unwrap().clone();
-                        let pdf_paths = self.dropped_files.clone();
-                        
-                        // Execute extraction
-                        match extractor::process_files(&pdf_paths, &excel_path) {
-                            Ok(count) => self.log(&format!("Success! Appended {} rows.", count)),
-                            Err(e) => self.log(&format!("Error: {}", e)),
+                        if ui.add_sized([200.0, 40.0], btn).clicked() {
+                            self.is_processing = true;
+                            self.log("Starting extraction...");
+                            
+                            let excel_path = self.excel_path.as_ref().unwrap().clone();
+                            let pdf_paths = self.dropped_files.clone();
+                            
+                            match extractor::process_files(&pdf_paths, &excel_path) {
+                                Ok(count) => self.log(&format!("Success! Appended {} rows.", count)),
+                                Err(e) => self.log(&format!("Error: {}", e)),
+                            }
+                            
+                            self.is_processing = false;
                         }
-                        
-                        self.is_processing = false;
                     }
+                } else {
+                    ui.label(egui::RichText::new("Please complete Step 1 and Step 2 to enable extraction.").color(egui::Color32::from_rgb(200, 100, 100)));
                 }
-            } else {
-                ui.label("Please select an Excel file and add PDFs to extract.");
-            }
+            });
 
+            ui.add_space(20.0);
             ui.separator();
-            ui.heading("Log");
+            ui.heading(egui::RichText::new("Console Log").size(16.0));
+            ui.add_space(5.0);
             
-            egui::ScrollArea::vertical().show(ui, |ui| {
+            // Console log area
+            egui::ScrollArea::vertical().stick_to_bottom(true).show(ui, |ui| {
                 for msg in &self.log_messages {
-                    ui.label(msg);
+                    if msg.starts_with("Error") || msg.starts_with("Ignored") {
+                        ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(255, 100, 100)));
+                    } else if msg.starts_with("Success") {
+                        ui.label(egui::RichText::new(msg).color(egui::Color32::LIGHT_GREEN));
+                    } else {
+                        ui.label(msg);
+                    }
                 }
             });
         });
