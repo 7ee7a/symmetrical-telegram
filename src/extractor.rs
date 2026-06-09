@@ -95,10 +95,10 @@ fn parse_pdf_text(text: &str) -> Result<(Vec<std::collections::HashMap<String, S
         "MTOW", "Landing", "Normal HRS", "Double HRS", "Remote HRS", "Parking"
     ];
 
-    // Regex to match exactly 18 fields. Allow decimals in hour fields just in case.
+    // Regex to match exactly 18 fields. Allow commas/decimals in all numeric fields.
     // Handles multi-word columns cleanly using dates and times as anchors.
     // Allowed letters in the flight numbers (e.g. 6E 752E).
-    let pattern = r"^(\d+)\s+([a-zA-Z0-9]+\s*[a-zA-Z0-9]*)\s+([a-zA-Z0-9]+\s*[a-zA-Z0-9]*)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s*(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d,.]+)$";
+    let pattern = r"^(\d+)\s+([a-zA-Z0-9]+\s*[a-zA-Z0-9]*)\s+([a-zA-Z0-9]+\s*[a-zA-Z0-9]*)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s*(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)$";
     let row_re = regex::Regex::new(pattern)
         .map_err(|e| format!("Regex compilation failed: {}", e))?;
     
@@ -127,9 +127,10 @@ fn parse_pdf_text(text: &str) -> Result<(Vec<std::collections::HashMap<String, S
                 results.push(row_map);
             } else {
                 // Garbage lines, wrapped headers, or footers without the structure are safely ignored.
-                // If it looks somewhat like a data row (contains digits) but fails regex, log it as skipped.
-                if line.chars().any(|c| c.is_digit(10)) {
-                    skipped_lines.push(line.to_string());
+                // If it looks somewhat like a data row (starts with a digit), log the SL.No.
+                if line.chars().next().map_or(false, |c| c.is_digit(10)) {
+                    let sl_no = line.split_whitespace().next().unwrap_or("?");
+                    skipped_lines.push(format!("SL.No {} -> Format mismatch. Check for missing columns.", sl_no));
                 }
             }
         }
