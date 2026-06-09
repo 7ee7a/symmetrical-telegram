@@ -7,6 +7,7 @@ pub struct ExtractorApp {
     pub excel_path: Option<PathBuf>,
     pub log_messages: Vec<String>,
     pub is_processing: bool,
+    pub extract_success_time: Option<std::time::Instant>,
 }
 
 impl Default for ExtractorApp {
@@ -16,6 +17,7 @@ impl Default for ExtractorApp {
             excel_path: None,
             log_messages: vec!["Application started. Please select an Excel file and drop PDF files.".to_string()],
             is_processing: false,
+            extract_success_time: None,
         }
     }
 }
@@ -59,6 +61,7 @@ impl eframe::App for ExtractorApp {
                             .add_filter("Excel files", &["xlsx"])
                             .pick_file() {
                             self.excel_path = Some(path.clone());
+                            self.extract_success_time = None;
                             self.log(&format!("Selected Excel: {}", path.display()));
                         }
                     }
@@ -117,8 +120,21 @@ impl eframe::App for ExtractorApp {
                         ui.add(egui::Spinner::new());
                         ui.label("Processing...");
                     } else {
-                        let btn = egui::Button::new(egui::RichText::new("🚀 Extract & Append").size(20.0))
-                            .fill(egui::Color32::from_rgb(0, 122, 204));
+                        let mut btn_text = "🚀 Extract & Append";
+                        let mut btn_color = egui::Color32::from_rgb(0, 122, 204);
+                        
+                        if let Some(success_time) = self.extract_success_time {
+                            if success_time.elapsed().as_secs() < 3 {
+                                btn_text = "✅ Completed!";
+                                btn_color = egui::Color32::from_rgb(40, 167, 69);
+                                ctx.request_repaint_after(std::time::Duration::from_millis(500));
+                            } else {
+                                self.extract_success_time = None;
+                            }
+                        }
+
+                        let btn = egui::Button::new(egui::RichText::new(btn_text).size(20.0))
+                            .fill(btn_color);
                         
                         if ui.add_sized([250.0, 50.0], btn).clicked() {
                             self.is_processing = true;
@@ -129,6 +145,7 @@ impl eframe::App for ExtractorApp {
                             
                             match extractor::process_files(&pdf_paths, &excel_path) {
                                 Ok((count, warnings)) => {
+                                    self.extract_success_time = Some(std::time::Instant::now());
                                     self.log(&format!("Success! Appended {} rows.", count));
                                     if !warnings.is_empty() {
                                         self.log(&format!("Warning: {} rows were ignored because their format didn't match.", warnings.len()));
@@ -177,6 +194,7 @@ impl eframe::App for ExtractorApp {
                 if let Some(path) = file.path {
                     if path.extension().map_or(false, |ext| ext.eq_ignore_ascii_case("pdf")) {
                         self.dropped_files.push(path.clone());
+                        self.extract_success_time = None;
                         self.log(&format!("Added PDF: {}", path.display()));
                     } else {
                         self.log(&format!("Ignored non-PDF file: {}", path.display()));
