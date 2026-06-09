@@ -28,16 +28,29 @@ impl ExtractorApp {
 
 impl eframe::App for ExtractorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Set standard dark theme visuals
         ctx.set_visuals(egui::Visuals::dark());
+
+        // Footer pinned to the bottom
+        egui::TopBottomPanel::bottom("footer_panel").show(ctx, |ui| {
+            ui.add_space(8.0);
+            ui.vertical_centered(|ui| {
+                ui.label(egui::RichText::new("V1.1 Created by W1164 for queries contact aditya.gottapu@waisldigital.com")
+                    .color(egui::Color32::GRAY)
+                    .size(12.0));
+            });
+            ui.add_space(8.0);
+        });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_space(10.0);
-            ui.heading(egui::RichText::new("📊 PDF to Excel Extractor").size(24.0).strong());
+            ui.vertical_centered(|ui| {
+                ui.heading(egui::RichText::new("✈️ 🅿️ Invoice PDF to Excel").size(28.0).strong());
+            });
             ui.add_space(15.0);
 
             // Excel Picker Group
             ui.group(|ui| {
+                ui.set_min_width(ui.available_width());
                 ui.label(egui::RichText::new("1. Select Target Excel File").size(16.0).strong());
                 ui.add_space(5.0);
                 ui.horizontal(|ui| {
@@ -61,6 +74,7 @@ impl eframe::App for ExtractorApp {
 
             // Dropzone Group
             ui.group(|ui| {
+                ui.set_min_width(ui.available_width());
                 ui.label(egui::RichText::new("2. Add PDF Files").size(16.0).strong());
                 ui.add_space(5.0);
                 ui.label("Drag and drop your PDF files directly into this window.");
@@ -94,19 +108,19 @@ impl eframe::App for ExtractorApp {
                 }
             });
 
-            ui.add_space(15.0);
+            ui.add_space(25.0);
 
-            // Action
-            ui.horizontal(|ui| {
+            // Action Button
+            ui.vertical_centered(|ui| {
                 if self.excel_path.is_some() && !self.dropped_files.is_empty() {
                     if self.is_processing {
                         ui.add(egui::Spinner::new());
                         ui.label("Processing...");
                     } else {
-                        let btn = egui::Button::new(egui::RichText::new("🚀 Extract & Append").size(18.0))
+                        let btn = egui::Button::new(egui::RichText::new("🚀 Extract & Append").size(20.0))
                             .fill(egui::Color32::from_rgb(0, 122, 204));
                         
-                        if ui.add_sized([200.0, 40.0], btn).clicked() {
+                        if ui.add_sized([250.0, 50.0], btn).clicked() {
                             self.is_processing = true;
                             self.log("Starting extraction...");
                             
@@ -128,21 +142,24 @@ impl eframe::App for ExtractorApp {
 
             ui.add_space(20.0);
             ui.separator();
-            ui.heading(egui::RichText::new("Console Log").size(16.0));
-            ui.add_space(5.0);
             
-            // Console log area
-            egui::ScrollArea::vertical().stick_to_bottom(true).show(ui, |ui| {
-                for msg in &self.log_messages {
-                    if msg.starts_with("Error") || msg.starts_with("Ignored") {
-                        ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(255, 100, 100)));
-                    } else if msg.starts_with("Success") {
-                        ui.label(egui::RichText::new(msg).color(egui::Color32::LIGHT_GREEN));
-                    } else {
-                        ui.label(msg);
-                    }
-                }
-            });
+            // Console log area (Collapsible)
+            egui::CollapsingHeader::new(egui::RichText::new("📝 Console Log").size(16.0))
+                .default_open(false)
+                .show(ui, |ui| {
+                    ui.set_min_width(ui.available_width());
+                    egui::ScrollArea::vertical().stick_to_bottom(true).max_height(150.0).show(ui, |ui| {
+                        for msg in &self.log_messages {
+                            if msg.starts_with("Error") || msg.starts_with("Ignored") {
+                                ui.label(egui::RichText::new(msg).color(egui::Color32::from_rgb(255, 100, 100)));
+                            } else if msg.starts_with("Success") {
+                                ui.label(egui::RichText::new(msg).color(egui::Color32::LIGHT_GREEN));
+                            } else {
+                                ui.label(msg);
+                            }
+                        }
+                    });
+                });
         });
 
         // Handle drag and drop
