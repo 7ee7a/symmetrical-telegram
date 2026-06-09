@@ -87,6 +87,12 @@ fn parse_pdf_text(text: &str) -> Result<Vec<std::collections::HashMap<String, St
         "Arr Date", "Arr Time", "Arr StdTyp", "Dep Date", "Dep Time", "Dep StdTyp", 
         "MTOW", "Landing", "Normal HRS", "Double HRS", "Remote HRS", "Parking"
     ];
+
+    // Regex to match exactly 18 fields.
+    // Handles multi-word columns (e.g., '6E 1422' or '67 R') cleanly using dates and times as anchors.
+    let pattern = r"^(\d+)\s+([a-zA-Z0-9]+\s*\d*)\s+([a-zA-Z0-9]+\s*\d*)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s+(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s*(\d{2}[./-]\d{2}[./-]\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s+([\d.]+)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d,.]+)$";
+    let row_re = regex::Regex::new(pattern)
+        .map_err(|e| format!("Regex compilation failed: {}", e))?;
     
     for line in text.lines() {
         let line = line.trim();
@@ -102,26 +108,16 @@ fn parse_pdf_text(text: &str) -> Result<Vec<std::collections::HashMap<String, St
         }
         
         if in_table {
-            // Some columns might have spaces in data, but we use a simple split for now
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            
-            if parts.len() < 5 {
-                continue;
-            }
-            
-            let mut row_map = std::collections::HashMap::new();
-            
-            let mut col_idx = 0;
-            for part in parts {
-                if col_idx < expected_cols.len() {
-                    row_map.insert(expected_cols[col_idx].to_string(), part.to_string());
-                    col_idx += 1;
+            // Only process lines that perfectly match the 18-column aviation structure
+            if let Some(caps) = row_re.captures(line) {
+                let mut row_map = std::collections::HashMap::new();
+                for i in 0..18 {
+                    let val = caps.get(i + 1).map_or("", |m| m.as_str()).trim();
+                    row_map.insert(expected_cols[i].to_string(), val.to_string());
                 }
-            }
-            
-            if !row_map.is_empty() {
                 results.push(row_map);
             }
+            // Garbage lines, wrapped headers, or footers without the structure are safely ignored.
         }
     }
     
