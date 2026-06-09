@@ -104,7 +104,8 @@ fn parse_pdf_text(text: &str) -> Result<Vec<std::collections::HashMap<String, St
         }
         
         if in_table && line.to_uppercase().contains("TOTAL") {
-            break;
+            in_table = false;
+            continue;
         }
         
         if in_table {
