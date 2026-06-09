@@ -61,7 +61,7 @@ fn parse_pdf_text(text: &str) -> Result<Vec<std::collections::HashMap<String, St
     let expected_cols = vec![
         "SL.No", "Arr Flt No.", "Dep FltNo.", "Regn No.", "Origin", "Dest", 
         "Arr Date", "Arr Time", "Arr StdTyp", "Dep Date", "Dep Time", "Dep StdTyp", 
-        "MTOW", "Landing Normal", "HRS Double", "HRS Remote", "HRS Parking"
+        "MTOW", "Landing", "Normal HRS", "Double HRS", "Remote HRS", "Parking"
     ];
     
     for line in text.lines() {
